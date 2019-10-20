@@ -107,6 +107,54 @@ location: `/tmp/krb5cc_<uid>`. That means it should 'just work' to use `kinit`:
 If that doesn't work, try setting the `KRB5CCNAME` environment variable to
 wherever you have the `ccache` saved.
 
+Using as library
+----------------
+This project can be used as HDFS library
+
+```go
+import "github/colinmarc/hdfs@v2.1.0"
+
+cl,err:=hdfs.New("hdfs-namenode.domain.com:8020")
+```
+
+When using Kerberos, some prerequisites must be fillfiled
+
+```go
+import (
+
+	klient "gopkg.in/jcmturner/gokrb5.v7/client"
+	konfig "gopkg.in/jcmturner/gokrb5.v7/config"
+	"gopkg.in/jcmturner/gokrb5.v7/keytab"
+)
+	kfg, err := konfig.Load("/etc/krb5.conf")
+	if err != nil {
+		panic(err)
+	}
+	kt, err := keytab.Load("/path/to/myuser.keytab")
+	if err != nil {
+		panic(err)
+	}
+    k := klient.NewClientWithKeytab("myuser", "MY.REALM.COM", kt, kfg)
+    
+    err=k.Login() // Using Login() starts go rutine, which will renew ticken when
+                  // it is about to expire 
+	if err != nil {
+		panic(err)
+    }
+    defer k.Destroy()
+    
+	c, err := hdfs.NewClient(hdfs.ClientOptions{
+		Addresses:                    []string{"hdfs-namenode.domain.com:8020"},
+		KerberosClient:               k,
+		KerberosServicePrincipleName: "hdfs/_HOST",
+		UseDatanodeHostname:          true,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+```
+
 Compatibility
 -------------
 
